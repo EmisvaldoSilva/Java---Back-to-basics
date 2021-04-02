@@ -1,4 +1,5 @@
-package utfpr.ppgcc.emisvaldo.silva;
+package utfpr.ppgcc.emisvaldo.silva.model;
+import java.util.ArrayList;
 
 /**
  * @author emisvaldo
@@ -9,19 +10,16 @@ public class Cromossomo{
 	private int dama[] = new int[tamanhoTabuleiro]; //Array com as rainhas
 	private double fitnes = 0.0; //garda a pontuação do cromossomo
 	private boolean selecionado = false;
-
 	private double mProbabilidadeDeSelecao = 0.0;
-	private int ataques = 0;
-
+	
 	//Ao ser instaciado um novo cromossomo ele vai montarum tabuleiro com tamanho definido tamanhoTabuleiro
 	public Cromossomo(){
 		for(int i = 0; i < tamanhoTabuleiro; i++){
 			this.dama[i] = i;
 		}
-		return;
 	}
 
-	public void contarAtaques(){
+	public int contarAtaques(){
 		int x = 0;
 		int y = 0;
 		int tempx = 0;
@@ -48,7 +46,7 @@ public class Cromossomo{
 			x = i;
 			y = this.dama[i];
 
-			// Checar diagonais.
+			// Checar diagonais por meio das coordenadas.
 			for(int j = 0; j <= 3; j++){
 				tempx = x;
 				tempy = y;
@@ -67,7 +65,25 @@ public class Cromossomo{
 			}
 		}
 
-		this.ataques = ataques;
+		return ataques;
+	}
+
+	public static double getFitness(ArrayList<Cromossomo> populacao){
+		// Erros mais baixos = 100%, erros mais altos = 0%
+		Cromossomo esseCromo = null;
+		double melhorScore = 0;
+		double piorScore = 0;
+
+		// A pior pontuação seria aquela com a pontuacao mais alta, a melhor seria a mais baixa. 
+		piorScore = populacao.get(Dama.maximo()).contarAtaques();
+
+		melhorScore = piorScore - populacao.get(Dama.minimo()).contarAtaques();
+
+		for(int i = 0; i < populacao.size(); i++){
+			esseCromo = populacao.get(i);
+			esseCromo.setFitnes((piorScore - esseCromo.contarAtaques()) * 100.0 / melhorScore);
+		}
+		return melhorScore;
 	}
 
 	public double ProbabilidadeDeSelecao()    {
@@ -76,7 +92,6 @@ public class Cromossomo{
 
 	public void ProbabilidadeDeSelecao(final double ProbSel){
 		mProbabilidadeDeSelecao = ProbSel;
-		return;
 	}
 
 	public int data(final int index){
@@ -85,7 +100,6 @@ public class Cromossomo{
 
 	public void data(final int index, final int value){
 		dama[index] = value;
-		return;
 	}
 
 	//###################### Metodos de acesso e modificadores ###################################
@@ -105,20 +119,6 @@ public class Cromossomo{
 	}
 
 	/**
-	 * @return the ataques
-	 */
-	public int getAtaques() {
-		return ataques;
-	}
-
-	/**
-	 * @param ataques the ataques to set
-	 */
-	public void setAtaques(int ataques) {
-		this.ataques = ataques;
-	}
-	
-	/**
 	 * @return the fitnes
 	 */
 	public double getFitness() {
@@ -131,7 +131,7 @@ public class Cromossomo{
 	public void setFitnes(double fitness) {
 		this.fitnes = fitness;
 	}
-	
+
 	/**
 	 * @return the selecionado
 	 */

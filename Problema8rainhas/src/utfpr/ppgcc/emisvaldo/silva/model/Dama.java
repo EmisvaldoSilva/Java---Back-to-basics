@@ -1,19 +1,16 @@
-package utfpr.ppgcc.emisvaldo.silva;
+package utfpr.ppgcc.emisvaldo.silva.model;
 
 import java.util.ArrayList;
-import java.util.Random;
-/**
- * @author emisvaldo
- *
- */
+import java.util.Iterator;
+import java.util.Scanner;
 public class Dama{
-	private static int popInicial  = 75;              	 	  // Tamanho da população inicial.
+	private static int popInicial  = 5;              	 	  // Tamanho da população inicial.
 	private static int geracaoMaxima = 100;                  // Número de ciclos de teste. 
 	private static double probabilidadeDeCruzamento = 0.7;  // Probabilidade de cruzamento de dois cromossomos. TAxa: 0.0 < probabilidadeDeCruzamento < 1.0
 	private static double taxaDeMutacao = 0.001;            // Taxa de mutacao. Rate: 0.0 < taxaDeMutacao < 1.0
 	private static int selecaoMinima = 2;                  // pars mínimos permitidos para seleção.
-	private static int selecaoMaxima = 50;                // Máximo de pars permitidos para seleção. Avalia: selecaoMinima < selecaoMaxima < tamanho do tabuleiro
-	private static int prolePorGeracao = 20;      	 	 // Nova prole criada por geração. Faixa: 0 < plole por geracao < selecaoMaxima.
+	private static int selecaoMaxima = 40;                // Máximo de pars permitidos para seleção. Avalia: selecaoMinima < selecaoMaxima < tamanho do tabuleiro
+	private static int prolePorGeracao = 40;      	 	 // Nova prole criada por geração. Faixa: 0 < plole por geracao < selecaoMaxima.
 	private static int randomizacaoMinima = 8;          // Pra randomizar cromossomos iniciais 
 	private static int randomizacaoMaxima = 20;
 	private static int PBC_MAX = 4;                   // Pontos máximos de cruzamento baseados na posição. Faixa: 0 < PBC_MAX < 8 (> 8 não é bom).
@@ -21,9 +18,15 @@ public class Dama{
 	private static int filhoCont = 0;
 	private static int proxMutacao = 0;            // Pra programar mutações. 
 	private static int mutacoes = 0;
-
 	private static ArrayList<Cromossomo> populacao = new ArrayList<Cromossomo>();
 
+	/*
+	 *  have never encountered any problem where genetic algorithms seemed to me 
+	 *  the right wayto attack it. Further, I have never seen any computational 
+	 *  results reported using geneticalgorithms that have favorably impressed me.
+	 *  
+	 *  Steven Skiena, The Algorithm Design Manual, 2nd ed. (Springer, 2009), p. 267.
+	*/
 	private static void algoritimoGenetico(){
 		int tamanhoPop = 0;
 		Cromossomo esseCromo = null;
@@ -32,47 +35,45 @@ public class Dama{
 		/******************************INICIALIZACAO*****************************************/
 		inicializarCromossomos();
 		mutacoes = 0;
-		proxMutacao = getNumeroAleatorio(0, (int)Math.round(1.0 / taxaDeMutacao));
-
+		proxMutacao = Utils.getNumeroAleatorio(0, (int)Math.round(1.0 / taxaDeMutacao));
 		while(!feito){
 			tamanhoPop = populacao.size();
-			for(int i = 0; i < tamanhoPop; i++)
-			{
+			for(int i = 0; i < tamanhoPop; i++)	{
 				esseCromo = populacao.get(i);
-				if((esseCromo.getAtaques() == 0) || geracao == geracaoMaxima){
+				if((esseCromo.contarAtaques() == 0) || geracao == geracaoMaxima){
 					feito = true;
 				}
 			}
+			if(!feito) {
 
-			/******************************MEDE A ADAPTACAO****************************************/			
-			getFitness();
+				/******************************MEDE A ADAPTACAO****************************************/			
+				Cromossomo.getFitness(populacao);
 
-			/******************************ETAPA DE SELECAO****************************************/
-			roletaSelecao();
+				/******************************ETAPA DE SELECAO****************************************/
+				roletaSelecao();
 
+				/******************************NOVA  GERACAO******************************************/
+				cruzamento();
+				prepProxGeracao();
 
-			cruzamento();
-
-			/******************************NOVA  GERACAO******************************************/
-			prepProxGeracao();
-
-			geracao++;
-			// Mostar status das gerações.
-			System.out.println("geracao: " + geracao);
-			mostrarSolucao(esseCromo);
+				geracao++;
+				// Mostar status das gerações.
+				System.out.println("geracao: " + geracao);
+				mostrarSolucao(esseCromo);
+			}
 		}
-		//Gambiarra pra imprimir se resolvel ou nao (Lembrar de arrumar isso)
-		Boolean solucao = false;
 		
+		Boolean solucao = false;
+
 		//Criterios de parada
 		if(geracao != geracaoMaxima){
 			tamanhoPop = populacao.size();
 			for(int i = 0; i < tamanhoPop; i++){
 				esseCromo = populacao.get(i);
-				if(esseCromo.getAtaques() == 0){
+				if(esseCromo.contarAtaques() == 0){
 					mostrarSolucao(esseCromo);
 					solucao = true;
-					
+
 				}
 			}
 			if (solucao == true) {
@@ -82,37 +83,18 @@ public class Dama{
 			}
 		}
 		System.out.println(geracao + " Geraçoes completas.");
-        System.out.println("Encontrada " + mutacoes + " mutações em " + filhoCont + " proles.");
-		return;
+		System.out.println("Encontrada " + mutacoes + " mutações em " + filhoCont + " proles.");
 	}
 
-	private static void getFitness(){
-		// Erros mais baixos = 100%, erros mais altos = 0%
-		int tamanhoPop = populacao.size();
-		Cromossomo esseCromo = null;
-		double melhorScore = 0;
-		double piorScore = 0;
-
-		// A pior pontuação seria aquela com a pontuacao mais alta, a melhor seria a mais baixa. 
-		piorScore = populacao.get(maximo()).getAtaques();
-
-		// Converta em uma porcentagem ponderada.
-		melhorScore = piorScore - populacao.get(minimo()).getAtaques();
-
-		for(int i = 0; i < tamanhoPop; i++){
-			esseCromo = populacao.get(i);
-			esseCromo.setFitnes((piorScore - esseCromo.getAtaques()) * 100.0 / melhorScore);
-		}
-
-		return;
-	}
+	//////////////////////////////////////
 
 	private static void roletaSelecao(){
 		int j = 0;
 		int popSize = populacao.size();
 		double genTotal = 0.0;
 		double selTotal = 0.0;
-		int maximumToSelect = getNumeroAleatorio(selecaoMinima, selecaoMaxima);
+		int maximumToSelect = Utils.getNumeroAleatorio(selecaoMinima, selecaoMaxima);
+		//System.out.println("-----------------" + " Selecionados " + maximumToSelect);
 		double rouletteSpin = 0.0;
 		Cromossomo esseCromo = null;
 		Cromossomo aqueleCromo = null;
@@ -131,7 +113,8 @@ public class Dama{
 		}
 
 		for(int i = 0; i < maximumToSelect; i++){
-			rouletteSpin = getNumeroAleatorio(0, 99);
+			rouletteSpin =  Utils.getNumeroAleatorio(0, 99);
+			//System.out.println("-----------------" + " giro roleta " + rouletteSpin);
 			j = 0;
 			selTotal = 0;
 			feito = false;
@@ -153,10 +136,9 @@ public class Dama{
 				}
 			}
 		}
-		return;
 	}
 
- 
+
 	//  Utilizei o cruzamento baseando em na posição
 	private static void cruzamento(){
 		int getRand = 0;
@@ -170,7 +152,7 @@ public class Dama{
 		for(int i = 0; i < prolePorGeracao; i++){
 			parA = escolherPar();
 			// teste de probabilidade de cruzamento .
-			getRand = getNumeroAleatorio(0, 100);
+			getRand = Utils.getNumeroAleatorio(0, 100);
 			if(getRand <= probabilidadeDeCruzamento * 100){
 				parB = escolherPar(parA);
 				novoCromo1 = new Cromossomo();
@@ -184,9 +166,9 @@ public class Dama{
 				CrossoverBaseadoPosicao(parA, parB, novoIndex1, novoIndex2);
 
 				if(filhoCont - 1 == proxMutacao){
-					comutaMutacao(novoIndex1, 1);
+					mutacao(novoIndex1, 1);
 				}else if(filhoCont == proxMutacao){
-					comutaMutacao(novoIndex2, 1);
+					mutacao(novoIndex2, 1);
 				}
 
 				populacao.get(novoIndex1).contarAtaques();
@@ -196,14 +178,11 @@ public class Dama{
 
 				// Programe a próxima mutação. 
 				if(filhoCont % (int)Math.round(1.0 / taxaDeMutacao) == 0){
-					proxMutacao = filhoCont + getNumeroAleatorio(0, (int)Math.round(1.0 / taxaDeMutacao));
+					proxMutacao = filhoCont + Utils.getNumeroAleatorio(0, (int)Math.round(1.0 / taxaDeMutacao));
 				}
 			}
 		} // i
-		return;
 	}
-
-
 
 	private static void CrossoverBaseadoPosicao(int cromA, int cromB, int filho1, int filho2){
 		int k = 0;
@@ -217,10 +196,10 @@ public class Dama{
 		Cromossomo nevoCromo2 = populacao.get(filho2);
 
 		// Escolha e classifique os pontos de cruzamento.
-		numPontos = getNumeroAleatorio(0, PBC_MAX);
+		numPontos = Utils.getNumeroAleatorio(0, PBC_MAX);
 		int crossPoints[] = new int[numPontos];
 		for(int i = 0; i < numPontos; i++){
-			crossPoints[i] = getNumeroAleatorio(0, Cromossomo.tamanhoTabuleiro - 1, crossPoints);
+			crossPoints[i] = Utils.getNumeroAleatorio(0, Cromossomo.tamanhoTabuleiro - 1, crossPoints);
 		} // i
 
 		// Obtenha não escolhidos do par 2 
@@ -238,12 +217,12 @@ public class Dama{
 			}
 		} // i
 
-		// Insira escolhas na criança 1. 
+		// Insira escolhas no filho 1. 
 		for(int i = 0; i < numPontos; i++){
 			novoCromo1.data(crossPoints[i], esseCromo.data(crossPoints[i]));
 		}
 
-		// Preencha os não escolhidos para a criança 1. 
+		// Preencha os não escolhidos para o filho 1. 
 		k = 0;
 		for(int i = 0; i < Cromossomo.tamanhoTabuleiro; i++){
 			matchFound = false;
@@ -274,17 +253,16 @@ public class Dama{
 			}
 		} // i
 
-		// Insira escolhas na criança 2. 
+		// Insira escolhas no filho 2. 
 		for(int i = 0; i < numPontos; i++){
 			nevoCromo2.data(crossPoints[i], aqueleCromo.data(crossPoints[i]));
 		}
 
-		// Preencha os não escolhidos para a criança 2. 
+		// Preencha os não escolhidos para o filho 2. 
 		k = 0;
 		for(int i = 0; i < Cromossomo.tamanhoTabuleiro; i++){
 			matchFound = false;
-			for(int j = 0; j < numPontos; j++)
-			{
+			for(int j = 0; j < numPontos; j++){
 				if(i == crossPoints[j]){
 					matchFound = true;
 				}
@@ -294,10 +272,9 @@ public class Dama{
 				k++;
 			}
 		} // i
-		return;
 	}
 
-	private static void comutaMutacao(final int index, final int exchanges){
+	private static void mutacao(final int index, final int mudancas){
 		int i =0;
 		int tempData = 0;
 		Cromossomo esseCromo = null;
@@ -308,21 +285,20 @@ public class Dama{
 		esseCromo = populacao.get(index);
 
 		while(!feito){
-			gene1 = getNumeroAleatorio(0, Cromossomo.tamanhoTabuleiro - 1);
-			gene2 = getNumeroAleatorioExclusivo(Cromossomo.tamanhoTabuleiro - 1, gene1);
+			gene1 = Utils.getNumeroAleatorio(0, Cromossomo.tamanhoTabuleiro - 1);
+			gene2 = Utils.getNumeroAleatorioExclusivo(Cromossomo.tamanhoTabuleiro - 1, gene1);
 
 			// Troque os genes escolhidos. 
 			tempData = esseCromo.data(gene1);
 			esseCromo.data(gene1, esseCromo.data(gene2));
 			esseCromo.data(gene2, tempData);
 
-			if(i == exchanges){
+			if(i == mudancas){
 				feito = true;
 			}
 			i++;
 		}
 		mutacoes++;
-		return;
 	}
 
 	private static int escolherPar(){
@@ -333,7 +309,7 @@ public class Dama{
 
 		while(!feito) {
 			// Escolha aleatoriamente um par
-			par = getNumeroAleatorio(0, populacao.size() - 1);
+			par = Utils.getNumeroAleatorio(0, populacao.size() - 1);
 			esseCromo = populacao.get(par);
 			if(esseCromo.isSelecionado() == true){
 				feito = true;
@@ -351,7 +327,7 @@ public class Dama{
 
 		while(!feito){
 			// Escolha aleatoriamente um par elegível. 
-			par = getNumeroAleatorio(0, populacao.size() - 1);
+			par = Utils.getNumeroAleatorio(0, populacao.size() - 1);
 			if(par != parA){
 				esseCromo = populacao.get(par);
 				if(esseCromo.isSelecionado() == true){
@@ -364,16 +340,12 @@ public class Dama{
 	}
 
 	private static void prepProxGeracao(){
-		int popSize = 0;
 		Cromossomo esseCromo = null;
 
-		// Redefina sinalizadores para indivíduos selecionados. 
-		popSize = populacao.size();
-		for(int i = 0; i < popSize; i++){
-			esseCromo = populacao.get(i);
+		for (Iterator<Cromossomo> iterator = populacao.iterator(); iterator.hasNext();) {
+			esseCromo = iterator.next();
 			esseCromo.setSelecionado(false);
 		}
-		return;
 	}
 
 	private static void mostrarSolucao(Cromossomo melhorSolucao){
@@ -392,7 +364,7 @@ public class Dama{
 		}
 
 		// Mostrar tabuleiro.
-		System.out.println("Tabuleiro:");
+		System.out.println();
 		for(int y = 0; y < Cromossomo.tamanhoTabuleiro; y++){
 			for(int x = 0; x < Cromossomo.tamanhoTabuleiro; x++){
 				if(board[x][y] == "D"){
@@ -403,52 +375,9 @@ public class Dama{
 			}
 			System.out.print("\n");
 		}
-
-		return;
 	}
 
-	private static int getNumeroAleatorio(final int low, final int high){
-		return (int)Math.round((high - low) * new Random().nextDouble() + low);
-	}
-
-	//metodo para pegar um numero aleatorio nao repetido
-	private static int getNumeroAleatorioExclusivo(final int high, final int exceto){
-		boolean feito = false;
-		int getRand = 0;
-
-		while(!feito){
-			getRand = new Random().nextInt(high);
-			if(getRand != exceto){
-				feito = true;
-			}
-		}
-
-		return getRand;
-	}
-
-	//Metodo pra tarefas gerais de geração de numeros aleatorios 
-	private static int getNumeroAleatorio(int low, int high, int[] except){
-		boolean feito = false;
-		int getRand = 0;
-
-		if(high != low){
-			while(!feito)
-			{
-				feito = true;
-				getRand = (int)Math.round((high - low) * new Random().nextDouble() + low);
-				for(int i = 0; i < except.length; i++){ // UBound (exceto) 
-					if(getRand == except[i]){
-						feito = false;
-					}
-				} // i
-			}
-			return getRand;
-		}else{
-			return high;
-		}
-	}
-
-	private static int minimo(){
+	public static int minimo(){
 		// Retorna um índice de matriz. 
 		int tamanhoPop = 0;
 		Cromossomo esseCromo = null;
@@ -464,7 +393,7 @@ public class Dama{
 				if(i != vencedor){             // Evite a auto-comparação. 
 					esseCromo = populacao.get(i);
 					aqueleCromo = populacao.get(vencedor);
-					if(esseCromo.getAtaques() < aqueleCromo.getAtaques()){
+					if(esseCromo.contarAtaques() < aqueleCromo.contarAtaques()){
 						vencedor = i;
 						encontrouNovoVencedor = true;
 					}
@@ -477,7 +406,7 @@ public class Dama{
 		return vencedor;
 	}
 
-	private static int maximo(){
+	public static int maximo(){
 		// Retorna um índice de matriz. 
 		int TamanhoPop = 0;
 		Cromossomo esseCromo = null;
@@ -493,7 +422,7 @@ public class Dama{
 				if(i != vencedor){             // Evitando a auto-comparação. 
 					esseCromo = populacao.get(i);
 					aqueleCromo = populacao.get(vencedor);
-					if(esseCromo.getAtaques() > aqueleCromo.getAtaques()){
+					if(esseCromo.contarAtaques() > aqueleCromo.contarAtaques()){
 						vencedor = i;
 						encontrouNovoVencedor = true;
 					}
@@ -517,21 +446,19 @@ public class Dama{
 			cromoIndex = populacao.indexOf(newCromo);
 
 			// Escolha aleatoriamente o número de embaralhamentos a serem executados. 
-			shuffles = getNumeroAleatorio(randomizacaoMinima, randomizacaoMaxima);
+			shuffles = Utils.getNumeroAleatorio(randomizacaoMinima, randomizacaoMaxima);
 
-			comutaMutacao(cromoIndex, shuffles);
+			mutacao(cromoIndex, shuffles);
 
-			populacao.get(cromoIndex).contarAtaques();
 
 		}
-		return;
 	}
 
-
-
 	public static void main(String[] args){
+		Scanner ler = new Scanner(System.in);
+		String resposta = "";
+
 		algoritimoGenetico();
-		return;
 	}
 
 }
